@@ -2,11 +2,12 @@
 package ctr
 
 import (
-	"crypto/aes"
-	"crypto/rand"	
-	"crypto/cipher"
 	"bytes"
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/rand"
 	"github.com/juanfgs/hmwk_crypto/tools"
+
 )
 
 type CTR struct {
@@ -29,48 +30,71 @@ func (this CTR) Encrypt(pt []byte) []byte {
 	if err != nil {
 		panic(err)
 	}
-	CT := iv 
+	CT := iv
 
 	max := len(pt) / aes.BlockSize
 	rest := len(pt) % aes.BlockSize
-	
-	for i:=0; i <= max ; i++ {
+
+	for i := 0; i <= max; i++ {
 
 		if i == max {
-			CT = append(CT,tools.XOR( GrabBlock(pt, rest, i * aes.BlockSize)  , this.EncryptBlock(iv) )...)
+			CT = append(CT, tools.XOR(GrabBlock(pt, rest, i*aes.BlockSize), this.EncryptBlock(iv))...)
 		} else {
-			CT = append(CT,tools.XOR( GrabBlock(pt, aes.BlockSize, i * aes.BlockSize)  , this.EncryptBlock(iv) )...)
+			CT = append(CT, tools.XOR(GrabBlock(pt, aes.BlockSize, i*aes.BlockSize), this.EncryptBlock(iv))...)
 		}
-		iv[len(iv) -1] = iv[len(iv) -1] + 1		
+
+		iv[len(iv)-1] = iv[len(iv)-1] + 1
 	}
 
 	return bytes.TrimSuffix(CT, []byte{0})
 
 }
 
-
 func (this CTR) Decrypt(ct []byte) []byte {
 
 	iv := ct[:aes.BlockSize]
 
 	CT := ct[aes.BlockSize:]
-	var PT []byte
+
 
 	max := len(CT) / aes.BlockSize
 	rest := len(CT) % aes.BlockSize
-	
-	for i:=0; i <= max; i++ {
+	PTChan := make(chan []byte, max +1)
+	IVChan := make(chan byte, max +1)
+	var PT []byte
+	for i := 0; i <= max; i++ {
+		var blockSize int
+
 		if i == max {
-			PT = append(PT,tools.XOR( GrabBlock(CT, rest, i * aes.BlockSize )  , this.EncryptBlock(iv) ) ...)
+			blockSize = rest
 		} else {
-			PT = append(PT,tools.XOR( GrabBlock(CT, aes.BlockSize, i * aes.BlockSize )  , this.EncryptBlock(iv) ) ...)
-		}
-		iv[len(iv) -1] = iv[len(iv) -1 ] + 1
+			blockSize = aes.BlockSize
+		
+}
+
+		block := GrabBlock(CT, blockSize, i * aes.BlockSize)
+		go func(idx int,  Block []byte) {
+
+			PTChan <- tools.XOR(Block, this.EncryptBlock(iv))
+			IVChan <- iv[len(iv)-1] + 1
+
+		}(i, block )
+		
+		iv[len(iv)-1] = <- IVChan
+
+	}
+	
+	go func(){
+		close(PTChan)
+	}()
+
+
+	for val := range PTChan{
+		PT = append(PT,val...)
 	}
 
 	return PT
 }
-
 
 
 func (this CTR) EncryptBlock(ct []byte) []byte {
