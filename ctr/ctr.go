@@ -24,34 +24,56 @@ func New(key []byte) CTR {
 
 // Encrypt function takes a plain text returns an AES/CBC encrypted CT
 func (this CTR) Encrypt(pt []byte) []byte {
-	var iv []byte = make([]byte, 16)
+	var iv []byte = make([]byte, aes.BlockSize)
 	_, err := rand.Read(iv)
 
 	if err != nil {
 		panic(err)
 	}
-	CT := iv
+	CT := append([]byte{},iv...)
 
 	max := len(pt) / aes.BlockSize
 	rest := len(pt) % aes.BlockSize
-
+	CTChan := make(chan []byte, max +1)
+	IVChan := make(chan byte, max +1)
 	for i := 0; i <= max; i++ {
 
+		var blockSize int
+
 		if i == max {
-			CT = append(CT, tools.XOR(GrabBlock(pt, rest, i*aes.BlockSize), this.EncryptBlock(iv))...)
+			blockSize = rest
 		} else {
-			CT = append(CT, tools.XOR(GrabBlock(pt, aes.BlockSize, i*aes.BlockSize), this.EncryptBlock(iv))...)
+			blockSize = aes.BlockSize
 		}
 
-		iv[len(iv)-1] = iv[len(iv)-1] + 1
+		block := GrabBlock(pt, blockSize, i * aes.BlockSize)
+
+		go func( Block []byte) {
+
+			CTChan <- tools.XOR(Block, this.EncryptBlock(iv))
+			IVChan <- iv[len(iv)-1] + 1
+
+		}( block )
+
+		iv[len(iv)-1] = <- IVChan
+
+	}
+	go func(){
+		close(CTChan)
+	}()
+
+
+	for val := range CTChan{
+		CT = append(CT,val...)
 	}
 
+	
 	return bytes.TrimSuffix(CT, []byte{0})
 
 }
 
 func (this CTR) Decrypt(ct []byte) []byte {
-
+	var PT []byte
 	iv := ct[:aes.BlockSize]
 
 	CT := ct[aes.BlockSize:]
@@ -61,7 +83,7 @@ func (this CTR) Decrypt(ct []byte) []byte {
 	rest := len(CT) % aes.BlockSize
 	PTChan := make(chan []byte, max +1)
 	IVChan := make(chan byte, max +1)
-	var PT []byte
+
 	for i := 0; i <= max; i++ {
 		var blockSize int
 
@@ -69,16 +91,15 @@ func (this CTR) Decrypt(ct []byte) []byte {
 			blockSize = rest
 		} else {
 			blockSize = aes.BlockSize
-		
-}
+		}
 
 		block := GrabBlock(CT, blockSize, i * aes.BlockSize)
-		go func(idx int,  Block []byte) {
+		go func( Block []byte) {
 
 			PTChan <- tools.XOR(Block, this.EncryptBlock(iv))
 			IVChan <- iv[len(iv)-1] + 1
 
-		}(i, block )
+		}( block )
 		
 		iv[len(iv)-1] = <- IVChan
 
