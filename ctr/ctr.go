@@ -107,6 +107,7 @@ func (this CTR) Decrypt(ct []byte) []byte {
 	
 	go func(){
 		close(PTChan)
+		close(IVChan)		
 	}()
 
 
