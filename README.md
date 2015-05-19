@@ -1,3 +1,5 @@
+[![Code Climate](https://codeclimate.com/github/juanfgs/GoCryptoCBCCTR/badges/gpa.svg)](https://codeclimate.com/github/juanfgs/GoCryptoCBCCTR)
+
 # GoCryptoCBCCTR
 CTR and CBC implemented in Golang
 
