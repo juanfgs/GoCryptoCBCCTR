@@ -1,0 +1,4 @@
+languages:
+  Ruby: go
+# exclude_paths:
+# - "foo/bar.rb"
