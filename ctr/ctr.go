@@ -8,6 +8,7 @@ import (
 	"crypto/rand"
 	"github.com/juanfgs/hmwk_crypto/tools"
 
+
 )
 
 type CTR struct {
@@ -23,7 +24,7 @@ func New(key []byte) CTR {
 }
 
 // Encrypt function takes a plain text returns an AES/CBC encrypted CT
-func (this CTR) Encrypt(pt []byte) []byte {
+func (this CTR) Encrypt(pt []byte ) []byte {
 	var iv []byte = make([]byte, aes.BlockSize)
 	_, err := rand.Read(iv)
 
@@ -60,6 +61,7 @@ func (this CTR) Encrypt(pt []byte) []byte {
 	}
 	go func(){
 		close(CTChan)
+		close(IVChan)
 	}()
 
 
